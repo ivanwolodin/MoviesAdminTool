@@ -2,20 +2,31 @@ version: "3.8"
 services:
   transporter:
     build: ./sql_to_pg/
+    container_name: transporter
     env_file:
     - webvars_example.env
     depends_on:
       - db
   db:
     build: ./database/
+    container_name: db
     env_file:
     - dbvars_example.env
     volumes:
       - database_data:/var/lib/postgresql/data
-  # etl:
+  
+  etl:
+    build: ./postgres_to_es
+    container_name: etl
+    depends_on:
+      - es
+
   es:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.2.0
     container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
     healthcheck:
       test: ["CMD-SHELL", "curl --silent --fail localhost:9200/_cluster/health || exit 1"]
       interval: 15s
@@ -23,6 +34,8 @@ services:
       retries: 3
     expose:
       - "9200"
+    ports:
+      - "9200:9200"
 
 volumes:
   database_data:
