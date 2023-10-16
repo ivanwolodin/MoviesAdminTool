@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  transporter:
+    build: ./sql_to_pg/
+    env_file:
+    - webvars_example.env
+    depends_on:
+      - db
+  db:
+    build: ./database/
+    env_file:
+    - dbvars_example.env
+    volumes:
+      - database_data:/var/lib/postgresql/data
+
+volumes:
+  database_data:
