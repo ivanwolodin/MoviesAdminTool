@@ -18,14 +18,17 @@ def create_es_index():
         try:
             es.info()
             connected = True
-        except:
+        except Exception as e:
             print("Elasticsearch not available yet, trying again in 2s...")
             time.sleep(2)
-    es.indices.create(
-        index='movies',
-        body=ES_INDEX
-    )
-    print("index was created!")
+    if not es.indices.exists(index='movies'):
+        es.indices.create(
+            index='movies',
+            body=ES_INDEX
+        )
+        print("index was created!")
+    else:
+        print("index already created!")
 
 
 if __name__ == "__main__":
