@@ -8,4 +8,6 @@ RUN pip install --upgrade pip --no-cache-dir && pip install -r requirements.txt 
 
 COPY . .
 
-CMD [ "python", "-u", "main.py"]
+# CMD [ "python", "-u", "main.py"]
+RUN chmod +x /opt/app/entrypoint.sh
+ENTRYPOINT ["/opt/app/entrypoint.sh"]

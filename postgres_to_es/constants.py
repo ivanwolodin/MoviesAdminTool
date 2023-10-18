@@ -1,3 +1,6 @@
+import os
+
+
 ES_INDEX = {
   "settings": {
     "refresh_interval": "1s",
@@ -105,3 +108,4 @@ ES_INDEX = {
     }
   }
 }
+
