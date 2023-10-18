@@ -3,6 +3,7 @@ from constants import ES_INDEX
 from db_connections import open_postgres_connection
 
 import time
+from datetime import datetime
 
 es = Elasticsearch(
         hosts="http://elasticsearch:9200/",
@@ -33,9 +34,14 @@ def create_es_index():
 
 
 def extract():
-    with open_postgres_connection() as pg_cursor:        
-        pg_cursor.execute("SELECT * FROM content.genre LIMIT 10")
-        res = pg_cursor.fetchall()
+    last_modified = datetime(2009, 10, 5, 18, 00)
+
+    with open_postgres_connection() as pg_cursor:
+        try:
+            pg_cursor.execute("SELECT id, modified FROM content.person  WHERE modified > '{}' ORDER BY modified LIMIT 100;".format(last_modified))
+            res = pg_cursor.fetchall()
+        except Exception as e:
+            print(e)
     return res
 
 
