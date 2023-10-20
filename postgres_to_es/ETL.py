@@ -33,21 +33,92 @@ def create_es_index():
         print("index already created!")
 
 
-def extract():
-    last_modified = datetime(2009, 10, 5, 18, 00)
+class ETL():
+    def __init__(self) -> None:
+        self._last_sync_date = datetime.now()
+        self.data_extractor_obj = self.DataExtractor()
 
-    with open_postgres_connection() as pg_cursor:
-        try:
-            pg_cursor.execute("SELECT id, modified FROM content.person  WHERE modified > '{}' ORDER BY modified LIMIT 100;".format(last_modified))
-            res = pg_cursor.fetchall()
-        except Exception as e:
-            print(e)
-    return res
+    class DataExtractor():
+        def __init__(self) -> None:
+            self._last_modified = datetime(2009, 10, 5, 18, 00)  # must be gotten from the State
+            self._person_ids = []
+            self._movies_ids = []
 
+        def _get_persons_ids(self) -> None:
+            with open_postgres_connection() as pg_cursor:
+                try:
+                    pg_cursor.execute(
+                        """SELECT id, modified
+                            FROM content.person
+                            WHERE modified > '{}'
+                            ORDER BY modified
+                            LIMIT 100;""".format(self._last_modified)
+                        )
 
-def transform():
-    pass
+                    persons = pg_cursor.fetchall()
+                    self._person_ids = [person[0] for person in persons]
+                    self._last_modified = persons[100][1]  # save in state
+                except Exception as e:
+                    print(e)
 
+        def _get_movies_ids(self) -> None:
+            with open_postgres_connection() as pg_cursor:
+                try:
+                    pg_cursor.execute(
+                        """SELECT fw.id, fw.modified
+                            FROM content.film_work fw
+                            LEFT JOIN content.person_film_work pfw
+                            ON pfw.film_work_id = fw.id
+                            WHERE pfw.person_id IN {}
+                            ORDER BY fw.modified
+                            LIMIT 100;""".format(tuple(self._person_ids))
+                    )
 
-def load():
-    pass
+                    movies_ids = pg_cursor.fetchall()
+                    self._movies_ids = [movie_id[0] for movie_id in movies_ids]
+
+                except Exception as e:
+                    print(e)
+
+        def _merge_data(self) -> None:
+            with open_postgres_connection() as pg_cursor:
+                try:
+                    pg_cursor.execute(
+                        """SELECT
+                            fw.id as fw_id,
+                            fw.title,
+                            fw.description,
+                            fw.rating,
+                            fw.type,
+                            fw.created,
+                            fw.modified,
+                            pfw.role,
+                            p.id,
+                            p.full_name,
+                            g.name
+                        FROM content.film_work fw
+                        LEFT JOIN content.person_film_work pfw
+                                ON pfw.film_work_id = fw.id
+                        LEFT JOIN content.person p
+                                ON p.id = pfw.person_id
+                        LEFT JOIN content.genre_film_work gfw
+                                ON gfw.film_work_id = fw.id
+                        LEFT JOIN content.genre g
+                                ON g.id = gfw.genre_id
+                        WHERE fw.id IN {}; """.format(tuple(self._movies_ids))
+                    )
+                    data = pg_cursor.fetchall()
+
+                except Exception as e:
+                    print(e)
+
+        def collect_data(self):
+            self._get_persons_ids()
+            self._get_movies_ids()
+            self._merge_data()
+
+    class DataTransformer():
+        pass
+
+    class DataLoader():
+        pass

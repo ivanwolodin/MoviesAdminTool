@@ -13,7 +13,7 @@ dsl = {
     'host': os.environ.get('DB_HOST'),
     'port': os.environ.get('DB_PORT'),
 }
-print(dsl)
+
 
 @contextmanager
 def open_postgres_connection():
