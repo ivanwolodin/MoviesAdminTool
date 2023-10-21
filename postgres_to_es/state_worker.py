@@ -46,7 +46,7 @@ class JsonFileStorage(BaseStorage):
                 try:
                     self.json_object = json.load(json_file)
                 except Exception as e:
-                    pass
+                    print(e)
         else:
             print('Файл не существует')
         return self.json_object
@@ -54,7 +54,7 @@ class JsonFileStorage(BaseStorage):
 
 class State:
     """Класс для работы с состояниями."""
-    def __init__(self, storage: BaseStorage) -> None:
+    def __init__(self, storage: JsonFileStorage) -> None:
         self.storage = storage
 
     def set_state(self, key: str, value: Any) -> None:
@@ -66,3 +66,7 @@ class State:
     def get_state(self, key: str) -> Any:
         """Получить состояние по определённому ключу."""
         return self.storage.retrieve_state().get(key, None)
+
+
+json_file_storage_obj = JsonFileStorage('state.json')
+state = State(json_file_storage_obj)

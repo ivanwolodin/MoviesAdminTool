@@ -3,6 +3,7 @@ from db_connections import open_postgres_connection
 from elasticsearch import helpers
 from es_index import es
 from logger import logger
+from state_worker import state
 from sql import sql_selects
 
 from collections import defaultdict
@@ -23,8 +24,7 @@ class ETL():
 
     class DataExtractor():
         def __init__(self) -> None:
-            self._last_modified_person = datetime(2009, 10, 5, 18, 00)  # must be gotten from the State
-            self._last_modified_movie = datetime(2009, 10, 5, 18, 00)  # must be gotten from the State
+            self._last_modified_person = datetime(2009, 10, 5, 18, 00)
             self._person_ids = []
             self._movies_ids = []
 
@@ -32,6 +32,11 @@ class ETL():
         def _get_persons_ids(self) -> None:
             with open_postgres_connection() as pg_cursor:
                 try:
+                    if state.get_state('last_sync') is None:
+                        self._last_modified_person = datetime(2009, 10, 5, 18, 00)
+                    else:
+                        self._last_modified_person = datetime.fromisoformat(state.get_state('last_sync'))
+
                     pg_cursor.execute(
                         sql_selects.get('persons').format(self._last_modified_person)
                     )
@@ -40,8 +45,12 @@ class ETL():
                         self._person_ids = []
                         return
                     self._person_ids = [person[0] for person in persons]
-                    self._last_modified_person = persons[len(persons) - 1][1]  # save in state
-                    print(self._last_modified_person)
+
+                    state.set_state(
+                        key='last_sync',
+                        value=persons[len(persons) - 1][1].isoformat(),
+                    )
+                    
                 except Exception as e:
                     logger.error(e)
 
@@ -73,7 +82,6 @@ class ETL():
                         )
                     )
                     data = pg_cursor.fetchall()
-                    self._last_modified_movie = data[len(data) - 1].get('modified')
                     return data
 
                 except Exception as e:
