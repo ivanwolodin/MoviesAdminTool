@@ -1,3 +1,4 @@
+from backoff import backoff
 from db_connections import open_postgres_connection
 from elasticsearch import helpers
 from es_index import es
@@ -27,6 +28,7 @@ class ETL():
             self._person_ids = []
             self._movies_ids = []
 
+        @backoff()
         def _get_persons_ids(self) -> None:
             with open_postgres_connection() as pg_cursor:
                 try:
@@ -43,6 +45,7 @@ class ETL():
                 except Exception as e:
                     logger.error(e)
 
+        @backoff()
         def _get_movies_ids(self) -> None:
             with open_postgres_connection() as pg_cursor:
                 try:
@@ -58,6 +61,7 @@ class ETL():
                 except Exception as e:
                     logger.error(e)
 
+        @backoff()
         def _merge_data(self) -> None:
             with open_postgres_connection() as pg_cursor:
                 try:
@@ -151,6 +155,7 @@ class ETL():
             return chunk
 
     class DataLoader():
+        @backoff()
         def load_to_es(self, data):
             if not data:
                 return
