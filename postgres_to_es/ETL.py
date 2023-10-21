@@ -1,6 +1,7 @@
 from elasticsearch import Elasticsearch, helpers
 from constants import ES_INDEX
 from db_connections import open_postgres_connection
+from logger import logger
 
 import time
 from collections import defaultdict
@@ -15,23 +16,23 @@ es = Elasticsearch(
 
 
 def create_es_index():
-    print("creating index...")
+    logger.info("creating index...")
     connected = False
     while not connected:
         try:
             es.info()
             connected = True
         except Exception as e:
-            print("Elasticsearch not available yet, trying again in 2s...")
+            logger.info("Elasticsearch not available yet, trying again in 2s...")
             time.sleep(2)
     if not es.indices.exists(index='movies'):
         es.indices.create(
             index='movies',
             body=ES_INDEX
         )
-        print("index was created!")
+        logger.info("index was created!")
     else:
-        print("index already created!")
+        logger.info("index already created!")
 
 
 class ETL():
@@ -69,8 +70,9 @@ class ETL():
                         return
                     self._person_ids = [person[0] for person in persons]
                     self._last_modified_person = persons[len(persons) - 1][1]  # save in state
+                    print(self._last_modified_person)
                 except Exception as e:
-                    print(e)
+                    logger.error(e)
 
         def _get_movies_ids(self) -> None:
             with open_postgres_connection() as pg_cursor:
@@ -88,10 +90,10 @@ class ETL():
                             LIMIT 100;""".format(tuple(self._person_ids))
                     )
                     movies_ids = pg_cursor.fetchall()
-                    self._movies_ids = [movie_id[0] for movie_id in movies_ids]
+                    self._movies_ids = set([movie_id[0] for movie_id in movies_ids])
 
                 except Exception as e:
-                    print(e)
+                    logger.error(e)
 
         def _merge_data(self) -> None:
             with open_postgres_connection() as pg_cursor:
@@ -120,9 +122,8 @@ class ETL():
                                 ON gfw.film_work_id = fw.id
                         LEFT JOIN content.genre g
                                 ON g.id = gfw.genre_id
-                        WHERE fw.id IN {} AND fw.modified > '{}' ; """.format(
+                        WHERE fw.id IN {} ; """.format(
                             tuple(self._movies_ids),
-                            self._last_modified_movie,
                         )
                     )
                     data = pg_cursor.fetchall()
@@ -130,7 +131,7 @@ class ETL():
                     return data
 
                 except Exception as e:
-                    print(e)
+                    logger.error(e)
 
         def collect_data(self):
             self._get_persons_ids()
@@ -140,18 +141,19 @@ class ETL():
     class DataTransformer():
         def __init__(self) -> None:
             self._clear_aux_data()
+            self._how_many = 0
 
         def _clear_aux_data(self):
             self._aux_dict = defaultdict(lambda: {
-                'imdb_rating': None,
-                'genre': None,
-                'title': None,
-                'description': None,
+                'imdb_rating': '',
+                'genre': '',
+                'title': '',
+                'description': '',
                 'actors_names': [],
                 'actors': [],
                 'writers_names': [],
                 'writers': [],
-                'director': None
+                'director': ''
             })
 
         def transform_data(self, data: list) -> list:
@@ -202,7 +204,8 @@ class ETL():
                 chunk.append(filmwork)
 
             self._clear_aux_data()
-
+            self._how_many += len(chunk)
+            logger.info(f'Total proccessed: {self._how_many}')
             return chunk
 
     class DataLoader():
@@ -218,4 +221,4 @@ class ETL():
                 for row in data
             ]
             res = helpers.bulk(es, actions)
-            print(res)
+            logger.info(res)
