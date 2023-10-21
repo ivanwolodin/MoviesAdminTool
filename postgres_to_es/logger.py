@@ -7,4 +7,4 @@ logging.basicConfig(
     level=logging.DEBUG,
     format=FORMAT,
 )
-logger = logging.getLogger('postgres_uploader')
+logger = logging.getLogger('es_uploader')

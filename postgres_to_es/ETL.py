@@ -1,38 +1,11 @@
-from elasticsearch import Elasticsearch, helpers
-from constants import ES_INDEX
 from db_connections import open_postgres_connection
+from elasticsearch import helpers
+from es_index import es
 from logger import logger
+from sql import sql_selects
 
-import time
 from collections import defaultdict
 from datetime import datetime
-
-es = Elasticsearch(
-        hosts="http://elasticsearch:9200/",
-        request_timeout=300,
-        max_retries=10,
-        retry_on_timeout=True,
-    )
-
-
-def create_es_index():
-    logger.info("creating index...")
-    connected = False
-    while not connected:
-        try:
-            es.info()
-            connected = True
-        except Exception as e:
-            logger.info("Elasticsearch not available yet, trying again in 2s...")
-            time.sleep(2)
-    if not es.indices.exists(index='movies'):
-        es.indices.create(
-            index='movies',
-            body=ES_INDEX
-        )
-        logger.info("index was created!")
-    else:
-        logger.info("index already created!")
 
 
 class ETL():
@@ -58,12 +31,8 @@ class ETL():
             with open_postgres_connection() as pg_cursor:
                 try:
                     pg_cursor.execute(
-                        """SELECT id, modified
-                            FROM content.person
-                            WHERE modified > '{}'
-                            ORDER BY modified
-                            LIMIT 100;""".format(self._last_modified_person)
-                        )
+                        sql_selects.get('persons').format(self._last_modified_person)
+                    )
                     persons = pg_cursor.fetchall()
                     if not persons:
                         self._person_ids = []
@@ -81,13 +50,7 @@ class ETL():
                         self._movies_ids = []
                         return
                     pg_cursor.execute(
-                        """SELECT fw.id, fw.modified
-                            FROM content.film_work fw
-                            LEFT JOIN content.person_film_work pfw
-                            ON pfw.film_work_id = fw.id
-                            WHERE pfw.person_id IN {}
-                            ORDER BY fw.modified
-                            LIMIT 100;""".format(tuple(self._person_ids))
+                        sql_selects.get('movies_by_persons').format(tuple(self._person_ids))
                     )
                     movies_ids = pg_cursor.fetchall()
                     self._movies_ids = set([movie_id[0] for movie_id in movies_ids])
@@ -101,28 +64,7 @@ class ETL():
                     if not self._movies_ids:
                         return []
                     pg_cursor.execute(
-                        """SELECT
-                            fw.id as fw_id,
-                            fw.title,
-                            fw.description,
-                            fw.rating,
-                            fw.type,
-                            fw.created,
-                            fw.modified,
-                            pfw.role,
-                            p.id,
-                            p.full_name,
-                            g.name
-                        FROM content.film_work fw
-                        LEFT JOIN content.person_film_work pfw
-                                ON pfw.film_work_id = fw.id
-                        LEFT JOIN content.person p
-                                ON p.id = pfw.person_id
-                        LEFT JOIN content.genre_film_work gfw
-                                ON gfw.film_work_id = fw.id
-                        LEFT JOIN content.genre g
-                                ON g.id = gfw.genre_id
-                        WHERE fw.id IN {} ; """.format(
+                        sql_selects.get('persons_genres_film_works_by_movies').format(
                             tuple(self._movies_ids),
                         )
                     )

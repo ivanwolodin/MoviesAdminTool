@@ -1,3 +1,9 @@
+import time
+
+from elasticsearch import Elasticsearch
+from logger import logger
+
+
 ES_INDEX = {
   "settings": {
     "refresh_interval": "1s",
@@ -105,3 +111,31 @@ ES_INDEX = {
     }
   }
 }
+
+
+es = Elasticsearch(
+        hosts="http://elasticsearch:9200/",
+        request_timeout=300,
+        max_retries=10,
+        retry_on_timeout=True,
+    )
+
+
+def create_es_index():
+    logger.info("creating index...")
+    connected = False
+    while not connected:
+        try:
+            es.info()
+            connected = True
+        except Exception as e:
+            logger.info("Elasticsearch not available yet, trying again in 2s...")
+            time.sleep(2)
+    if not es.indices.exists(index='movies'):
+        es.indices.create(
+            index='movies',
+            body=ES_INDEX
+        )
+        logger.info("index was created!")
+    else:
+        logger.info("index already created!")
