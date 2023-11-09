@@ -3,14 +3,17 @@ sql_selects = {
                     FROM content.person
                     WHERE modified > '{}'
                     ORDER BY modified
-                    LIMIT 100;""",
+                    LIMIT 100
+                    """,
     'movies_by_persons': """SELECT fw.id, fw.modified
                             FROM content.film_work fw
                             LEFT JOIN content.person_film_work pfw
                             ON pfw.film_work_id = fw.id
                             WHERE pfw.person_id IN {}
+                            OR pfw.film_work_id IS NULL
                             ORDER BY fw.modified
-                            LIMIT 100;""",
+                            LIMIT 500
+                            """,
     'persons_genres_film_works_by_movies': """SELECT
                                 fw.id as fw_id,
                                 fw.title,
@@ -32,5 +35,14 @@ sql_selects = {
                                     ON gfw.film_work_id = fw.id
                             LEFT JOIN content.genre g
                                     ON g.id = gfw.genre_id
-                            WHERE fw.id IN {} ; """,
+                            WHERE fw.id IN {} ; 
+                            """,
+    'movies_with_no_persons': """SELECT fw.id, fw.modified
+                            FROM content.film_work fw
+                            LEFT JOIN content.person_film_work pfw
+                            ON pfw.film_work_id = fw.id
+                            WHERE pfw.film_work_id IS NULL
+                            ORDER BY fw.modified
+                            LIMIT 500
+                            """,
 }

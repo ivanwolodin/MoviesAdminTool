@@ -22,7 +22,7 @@ def backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10):
         def inner(*args, **kwargs):
             tries = 0
             while True:
-                t = min(border_sleep_time, start_sleep_time * factor ** tries)
+                t = min(border_sleep_time, start_sleep_time * factor**tries)
                 if tries > 0:
                     time.sleep(t)
                 try:
@@ -32,4 +32,5 @@ def backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10):
                     # logging.error(str(e))
 
         return inner
+
     return func_wrapper

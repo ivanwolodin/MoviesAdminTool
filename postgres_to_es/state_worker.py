@@ -54,6 +54,7 @@ class JsonFileStorage(BaseStorage):
 
 class State:
     """Класс для работы с состояниями."""
+
     def __init__(self, storage: JsonFileStorage) -> None:
         self.storage = storage
 
