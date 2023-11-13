@@ -9,5 +9,5 @@ if __name__ == '__main__':
     etl_obj = ETL()
 
     while True:
-        time.sleep(1)
         etl_obj.run()
+        time.sleep(1)

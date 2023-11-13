@@ -3,6 +3,9 @@ from typing import Any, Dict
 import os
 import json
 
+from constants import STATE_JSON_FILE_NAME
+from logger import logger
+
 
 class BaseStorage(abc.ABC):
     """Абстрактное хранилище состояния.
@@ -48,7 +51,7 @@ class JsonFileStorage(BaseStorage):
                 except Exception as e:
                     print(e)
         else:
-            print('Файл не существует')
+            logger.info('State JSON file does not exist!')
         return self.json_object
 
 
@@ -69,5 +72,5 @@ class State:
         return self.storage.retrieve_state().get(key, None)
 
 
-json_file_storage_obj = JsonFileStorage('state.json')
+json_file_storage_obj = JsonFileStorage(STATE_JSON_FILE_NAME)
 state = State(json_file_storage_obj)

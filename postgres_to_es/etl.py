@@ -3,6 +3,14 @@ from db_connections import open_postgres_connection
 from elasticsearch import helpers
 from es_index import es
 from logger import logger
+from constants import (
+    SELECT_PERSONS,
+    SELECT_MOVIES_BY_PERSONS,
+    SELECT_PERSONS_GENRES_FILM_WORKS_BY_MOVIES,
+    SELECT_MOVIES_WITH_NO_PERSONS,
+    LAST_MODIFIED_DATA,
+    STATE_JSON_KEY,
+)
 from state_worker import state
 from sql import sql_selects
 
@@ -15,18 +23,17 @@ from datetime import datetime
 class ETL:
     def __init__(self) -> None:
         self._last_sync_date = datetime.now()
-        self.data_extractor_obj = self.DataExtractor()
-        self.data_transformer = self.DataTransformer()
-        self.data_loader = self.DataLoader()
+        self.data_extractor_obj = self.Extractor()
+        self.data_transformer = self.Transformer()
+        self.data_loader = self.Loader()
 
     def run(self):
         raw_data = self.data_extractor_obj.collect_data()
         es_data = self.data_transformer.transform_data(raw_data)
         self.data_loader.load_to_es(es_data)
 
-    class DataExtractor:
+    class Extractor:
         def __init__(self) -> None:
-            self._last_modified_person = datetime(2009, 10, 5, 18, 00)
             self._person_ids = []
             self._movies_ids = []
 
@@ -34,17 +41,15 @@ class ETL:
         def _get_persons_ids(self) -> None:
             with open_postgres_connection() as pg_cursor:
                 try:
-                    if state.get_state('last_sync') is None:
-                        self._last_modified_person = datetime(
-                            2009, 10, 5, 18, 00
-                        )
+                    if state.get_state(STATE_JSON_KEY) is None:
+                        self._last_modified_person = LAST_MODIFIED_DATA
                     else:
                         self._last_modified_person = datetime.fromisoformat(
-                            state.get_state('last_sync')
+                            state.get_state(STATE_JSON_KEY)
                         )
 
                     pg_cursor.execute(
-                        sql_selects.get('persons').format(
+                        sql_selects.get(SELECT_PERSONS).format(
                             self._last_modified_person
                         )
                     )
@@ -55,7 +60,7 @@ class ETL:
                     self._person_ids = [person[0] for person in persons]
 
                     state.set_state(
-                        key='last_sync',
+                        key=STATE_JSON_KEY,
                         value=persons[len(persons) - 1][1].isoformat(),
                     )
 
@@ -68,11 +73,11 @@ class ETL:
                 try:
                     if not self._person_ids:
                         pg_cursor.execute(
-                            sql_selects.get('movies_with_no_persons')
+                            sql_selects.get(SELECT_MOVIES_WITH_NO_PERSONS)
                         )
                     else:
                         pg_cursor.execute(
-                            sql_selects.get('movies_by_persons').format(
+                            sql_selects.get(SELECT_MOVIES_BY_PERSONS).format(
                                 tuple(set(self._person_ids))
                             )
                         )
@@ -86,14 +91,14 @@ class ETL:
                     logger.error(e)
 
         @backoff()
-        def _merge_data(self) -> None:
+        def _get_merged_data(self) -> None:
             with open_postgres_connection() as pg_cursor:
                 try:
                     if not self._movies_ids:
                         return []
                     pg_cursor.execute(
                         sql_selects.get(
-                            'persons_genres_film_works_by_movies'
+                            SELECT_PERSONS_GENRES_FILM_WORKS_BY_MOVIES
                         ).format(
                             tuple(self._movies_ids),
                         )
@@ -107,12 +112,12 @@ class ETL:
         def collect_data(self):
             self._get_persons_ids()
             self._get_movies_ids()
-            return self._merge_data()
+            return self._get_merged_data()
 
-    class DataTransformer:
+    class Transformer:
         def __init__(self) -> None:
             self._clear_aux_data()
-            self._how_many = 0
+            self._how_many_inserted = 0
 
         def _clear_aux_data(self):
             self._aux_dict = defaultdict(
@@ -131,7 +136,7 @@ class ETL:
 
         def transform_data(self, data: list) -> list:
             if not data:
-                return
+                return []
 
             for row in data:
                 if self._aux_dict.get(row['fw_id']) is None:
@@ -188,11 +193,11 @@ class ETL:
                 chunk.append(filmwork)
 
             self._clear_aux_data()
-            self._how_many += len(chunk)
-            logger.info(f'Total proccessed: {self._how_many}')
+            self._how_many_inserted += len(chunk)
+            logger.info(f'Total processed: {self._how_many_inserted}')
             return chunk
 
-    class DataLoader:
+    class Loader:
         @backoff()
         def load_to_es(self, data):
             if not data:
