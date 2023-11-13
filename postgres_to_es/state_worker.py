@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict
+from typing import Any
 import os
 import json
 
@@ -17,12 +17,12 @@ class BaseStorage(abc.ABC):
     """
 
     @abc.abstractmethod
-    def save_state(self, state: Dict[str, Any]) -> None:
+    def save_state(self, state: dict[str, Any]) -> None:
         """Сохранить состояние в хранилище."""
         pass
 
     @abc.abstractmethod
-    def retrieve_state(self) -> Dict[str, Any]:
+    def retrieve_state(self) -> dict[str, Any]:
         """Получить состояние из хранилища."""
         pass
 
@@ -37,12 +37,12 @@ class JsonFileStorage(BaseStorage):
         self.file_path = file_path
         self.json_object = {}
 
-    def save_state(self, state: Dict[str, Any]) -> None:
+    def save_state(self, state: dict[str, str]) -> None:
         """Сохранить состояние в хранилище."""
         with open(self.file_path, 'w+') as json_file:
             json.dump(state, json_file)
 
-    def retrieve_state(self) -> Dict[str, Any]:
+    def retrieve_state(self) -> dict[str, str]:
         """Получить состояние из хранилища."""
         if os.path.isfile(self.file_path):
             with open(self.file_path, 'r+') as json_file:
@@ -61,13 +61,13 @@ class State:
     def __init__(self, storage: JsonFileStorage) -> None:
         self.storage = storage
 
-    def set_state(self, key: str, value: Any) -> None:
+    def set_state(self, key: str, value: str) -> None:
         """Установить состояние для определённого ключа."""
         state_dict = self.storage.retrieve_state()
         state_dict[key] = value
         self.storage.save_state(state_dict)
 
-    def get_state(self, key: str) -> Any:
+    def get_state(self, key: str) -> str | None:
         """Получить состояние по определённому ключу."""
         return self.storage.retrieve_state().get(key, None)
 

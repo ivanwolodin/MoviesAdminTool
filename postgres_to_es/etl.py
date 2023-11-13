@@ -1,3 +1,5 @@
+import uuid
+
 from backoff import backoff
 from db_connections import open_postgres_connection
 from elasticsearch import helpers
@@ -17,8 +19,6 @@ from sql import sql_selects
 from collections import defaultdict
 from datetime import datetime
 
-# TODO: type hinting!!!!!!!!
-
 
 class ETL:
     def __init__(self) -> None:
@@ -27,24 +27,25 @@ class ETL:
         self.data_transformer = self.Transformer()
         self.data_loader = self.Loader()
 
-    def run(self):
+    def run(self) -> None:
         raw_data = self.data_extractor_obj.collect_data()
         es_data = self.data_transformer.transform_data(raw_data)
         self.data_loader.load_to_es(es_data)
 
     class Extractor:
         def __init__(self) -> None:
-            self._person_ids = []
-            self._movies_ids = []
+            self._person_ids: list[uuid.UUID] = []
+            self._movies_ids: list[uuid.UUID] = []
+            self._last_modified_person: datetime
 
         @backoff()
         def _get_persons_ids(self) -> None:
             with open_postgres_connection() as pg_cursor:
                 try:
                     if state.get_state(STATE_JSON_KEY) is None:
-                        self._last_modified_person = LAST_MODIFIED_DATA
+                        self._last_modified_person: datetime = LAST_MODIFIED_DATA
                     else:
-                        self._last_modified_person = datetime.fromisoformat(
+                        self._last_modified_person: datetime = datetime.fromisoformat(
                             state.get_state(STATE_JSON_KEY)
                         )
 
@@ -91,7 +92,7 @@ class ETL:
                     logger.error(e)
 
         @backoff()
-        def _get_merged_data(self) -> None:
+        def _get_merged_data(self) -> list[tuple]:
             with open_postgres_connection() as pg_cursor:
                 try:
                     if not self._movies_ids:
@@ -109,7 +110,7 @@ class ETL:
                 except Exception as e:
                     logger.error(e)
 
-        def collect_data(self):
+        def collect_data(self) -> list[tuple]:
             self._get_persons_ids()
             self._get_movies_ids()
             return self._get_merged_data()
@@ -119,7 +120,7 @@ class ETL:
             self._clear_aux_data()
             self._how_many_inserted = 0
 
-        def _clear_aux_data(self):
+        def _clear_aux_data(self) -> None:
             self._aux_dict = defaultdict(
                 lambda: {
                     'imdb_rating': '',
@@ -199,7 +200,7 @@ class ETL:
 
     class Loader:
         @backoff()
-        def load_to_es(self, data):
+        def load_to_es(self, data) -> None:
             if not data:
                 return
             actions = [
