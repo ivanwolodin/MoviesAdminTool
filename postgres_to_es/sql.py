@@ -6,13 +6,15 @@ from constants import (
 )
 
 sql_selects = {
-    SELECT_PERSONS: """SELECT id, modified
+    SELECT_PERSONS: """
+                    SELECT id, modified
                     FROM content.person
                     WHERE modified > '{}'
                     ORDER BY modified
                     LIMIT 100
                     """,
-    SELECT_MOVIES_BY_PERSONS: """SELECT fw.id, fw.modified
+    SELECT_MOVIES_BY_PERSONS: """
+                            SELECT fw.id, fw.modified
                             FROM content.film_work fw
                             LEFT JOIN content.person_film_work pfw
                             ON pfw.film_work_id = fw.id
@@ -21,7 +23,8 @@ sql_selects = {
                             ORDER BY fw.modified
                             LIMIT 500
                             """,
-    SELECT_PERSONS_GENRES_FILM_WORKS_BY_MOVIES: """SELECT
+    SELECT_PERSONS_GENRES_FILM_WORKS_BY_MOVIES: """
+                            SELECT
                                 fw.id as fw_id,
                                 fw.title,
                                 fw.description,
@@ -44,7 +47,8 @@ sql_selects = {
                                     ON g.id = gfw.genre_id
                             WHERE fw.id IN {} ; 
                             """,
-    SELECT_MOVIES_WITH_NO_PERSONS: """SELECT fw.id, fw.modified
+    SELECT_MOVIES_WITH_NO_PERSONS: """
+                            SELECT fw.id, fw.modified
                             FROM content.film_work fw
                             LEFT JOIN content.person_film_work pfw
                             ON pfw.film_work_id = fw.id

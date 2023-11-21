@@ -34,8 +34,8 @@ class JsonFileStorage(BaseStorage):
     """
 
     def __init__(self, file_path: str) -> None:
-        self.file_path = file_path
-        self.json_object = {}
+        self.file_path: str = file_path
+        self.json_object: dict[str, str] = {}
 
     def save_state(self, state: dict[str, str]) -> None:
         """Сохранить состояние в хранилище."""
@@ -59,17 +59,24 @@ class State:
     """Класс для работы с состояниями."""
 
     def __init__(self, storage: JsonFileStorage) -> None:
-        self.storage = storage
+        self.storage: JsonFileStorage = storage
 
-    def set_state(self, key: str, value: str) -> None:
-        """Установить состояние для определённого ключа."""
+    @property
+    def state(self):
+        """Геттер для получения текущего состояния."""
+        return self.storage.retrieve_state()
+
+    @state.setter
+    def state(self, key_value_tuple: tuple[str, str]):
+        """Сеттер для установки состояния."""
+        key, value = key_value_tuple
         state_dict = self.storage.retrieve_state()
         state_dict[key] = value
         self.storage.save_state(state_dict)
 
     def get_state(self, key: str) -> str | None:
         """Получить состояние по определённому ключу."""
-        return self.storage.retrieve_state().get(key, None)
+        return self.state.get(key, None)
 
 
 json_file_storage_obj = JsonFileStorage(STATE_JSON_FILE_NAME)

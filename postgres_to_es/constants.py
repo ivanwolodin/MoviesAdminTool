@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 ES_INDEX_STRUCTURE = {
@@ -80,3 +81,12 @@ STATE_JSON_KEY = 'last_sync'
 ETL_LOG_FILENAME = 'etl.log'
 LOGGER_ENCODING = 'utf-8'
 LOGGER_NAME = 'es_uploader'
+LOGGER_FORMAT = '%(asctime)s %(message)s'
+
+dsl = {
+    'dbname': os.environ.get('DB_NAME'),
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSWORD'),
+    'host': os.environ.get('DB_HOST'),
+    'port': os.environ.get('DB_PORT'),
+}

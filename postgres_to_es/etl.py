@@ -22,7 +22,6 @@ from datetime import datetime
 
 class ETL:
     def __init__(self) -> None:
-        self._last_sync_date = datetime.now()
         self.data_extractor_obj = self.Extractor()
         self.data_transformer = self.Transformer()
         self.data_loader = self.Loader()
@@ -43,10 +42,14 @@ class ETL:
             with open_postgres_connection() as pg_cursor:
                 try:
                     if state.get_state(STATE_JSON_KEY) is None:
-                        self._last_modified_person: datetime = LAST_MODIFIED_DATA
+                        self._last_modified_person: datetime = (
+                            LAST_MODIFIED_DATA
+                        )
                     else:
-                        self._last_modified_person: datetime = datetime.fromisoformat(
-                            state.get_state(STATE_JSON_KEY)
+                        self._last_modified_person: datetime = (
+                            datetime.fromisoformat(
+                                state.get_state(STATE_JSON_KEY)
+                            )
                         )
 
                     pg_cursor.execute(
@@ -60,9 +63,9 @@ class ETL:
                         return
                     self._person_ids = [person[0] for person in persons]
 
-                    state.set_state(
-                        key=STATE_JSON_KEY,
-                        value=persons[len(persons) - 1][1].isoformat(),
+                    state.state = (
+                        STATE_JSON_KEY,
+                        persons[len(persons) - 1][1].isoformat(),
                     )
 
                 except Exception as e:
@@ -118,7 +121,7 @@ class ETL:
     class Transformer:
         def __init__(self) -> None:
             self._clear_aux_data()
-            self._how_many_inserted = 0
+            self._how_many_inserted: int = 0
 
         def _clear_aux_data(self) -> None:
             self._aux_dict = defaultdict(
