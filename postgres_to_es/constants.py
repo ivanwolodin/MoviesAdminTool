@@ -65,6 +65,7 @@ ES_INDEX_STRUCTURE = {
     },
 }
 ES_INDEX_NAME = 'movies'
+ES_PORT = os.environ.get('ES_PORT')
 
 SELECT_PERSONS = 'persons_select'
 SELECT_MOVIES_BY_PERSONS = 'movies_by_persons_select'
@@ -90,3 +91,5 @@ dsl = {
     'host': os.environ.get('DB_HOST'),
     'port': os.environ.get('DB_PORT'),
 }
+
+EXCEPTION_ON_EXCEEDING_TRIES_LIMIT = 'Maximum number of attempts reached'

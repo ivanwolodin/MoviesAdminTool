@@ -15,9 +15,10 @@ class PostgresSaver:
             )
             with open_postgres_connection() as pg_cursor:
                 args = ','.join(
-                    pg_cursor.mogrify(data['string_pattern'],
+                    pg_cursor.mogrify(
+                        data['string_pattern'],
                         tuple([asdict(item)[x] for x in data['ordered_keys']]),
-                        ).decode()
+                    ).decode()
                     for item in data['res']
                 )
                 pg_cursor.execute(data['postgres_sql_upsert'].format(args))

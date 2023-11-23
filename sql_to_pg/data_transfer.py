@@ -36,10 +36,16 @@ class DataTransfer:
                     self.postgres_saver_obj.save_data(
                         {
                             'res': res,
-                            'postgres_table': db_dataclass.get('postgres_table'),
+                            'postgres_table': db_dataclass.get(
+                                'postgres_table'
+                            ),
                             'ordered_keys': db_dataclass.get('ordered_keys'),
-                            'string_pattern': db_dataclass.get('string_pattern'),
-                            'postgres_sql_upsert': db_dataclass.get('postgres_sql_upsert'),
+                            'string_pattern': db_dataclass.get(
+                                'string_pattern'
+                            ),
+                            'postgres_sql_upsert': db_dataclass.get(
+                                'postgres_sql_upsert'
+                            ),
                         },
                     )
 

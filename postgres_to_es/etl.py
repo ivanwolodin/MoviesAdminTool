@@ -1,9 +1,9 @@
 import uuid
 
 from backoff import backoff
-from db_connections import open_postgres_connection
+from db_connection import open_postgres_connection
 from elasticsearch import helpers
-from es_index import es
+
 from logger import logger
 from constants import (
     SELECT_PERSONS,
@@ -13,6 +13,7 @@ from constants import (
     LAST_MODIFIED_DATA,
     STATE_JSON_KEY,
 )
+from es_connection import open_elasticsearch_connection
 from state_worker import state
 from sql import sql_selects
 
@@ -40,78 +41,62 @@ class ETL:
         @backoff()
         def _get_persons_ids(self) -> None:
             with open_postgres_connection() as pg_cursor:
-                try:
-                    if state.get_state(STATE_JSON_KEY) is None:
-                        self._last_modified_person: datetime = (
-                            LAST_MODIFIED_DATA
-                        )
-                    else:
-                        self._last_modified_person: datetime = (
-                            datetime.fromisoformat(
-                                state.get_state(STATE_JSON_KEY)
-                            )
-                        )
-
-                    pg_cursor.execute(
-                        sql_selects.get(SELECT_PERSONS).format(
-                            self._last_modified_person
-                        )
-                    )
-                    persons = pg_cursor.fetchall()
-                    if not persons:
-                        self._person_ids = []
-                        return
-                    self._person_ids = [person[0] for person in persons]
-
-                    state.state = (
-                        STATE_JSON_KEY,
-                        persons[len(persons) - 1][1].isoformat(),
+                if state.get_state(STATE_JSON_KEY) is None:
+                    self._last_modified_person: datetime = LAST_MODIFIED_DATA
+                else:
+                    self._last_modified_person: datetime = (
+                        datetime.fromisoformat(state.get_state(STATE_JSON_KEY))
                     )
 
-                except Exception as e:
-                    logger.error(e)
+                pg_cursor.execute(
+                    sql_selects.get(SELECT_PERSONS).format(
+                        self._last_modified_person
+                    )
+                )
+                persons = pg_cursor.fetchall()
+                if not persons:
+                    self._person_ids = []
+                    return
+                self._person_ids = [person[0] for person in persons]
+
+                state.state = (
+                    STATE_JSON_KEY,
+                    persons[len(persons) - 1][1].isoformat(),
+                )
 
         @backoff()
         def _get_movies_ids(self) -> None:
             with open_postgres_connection() as pg_cursor:
-                try:
-                    if not self._person_ids:
-                        pg_cursor.execute(
-                            sql_selects.get(SELECT_MOVIES_WITH_NO_PERSONS)
-                        )
-                    else:
-                        pg_cursor.execute(
-                            sql_selects.get(SELECT_MOVIES_BY_PERSONS).format(
-                                tuple(set(self._person_ids))
-                            )
-                        )
-                    movies_ids = pg_cursor.fetchall()
-
-                    self._movies_ids = set(
-                        [movie_id[0] for movie_id in movies_ids]
+                if not self._person_ids:
+                    pg_cursor.execute(
+                        sql_selects.get(SELECT_MOVIES_WITH_NO_PERSONS)
                     )
+                else:
+                    pg_cursor.execute(
+                        sql_selects.get(SELECT_MOVIES_BY_PERSONS).format(
+                            tuple(set(self._person_ids))
+                        )
+                    )
+                movies_ids = pg_cursor.fetchall()
 
-                except Exception as e:
-                    logger.error(e)
+                self._movies_ids = set(
+                    [movie_id[0] for movie_id in movies_ids]
+                )
 
         @backoff()
         def _get_merged_data(self) -> list[tuple]:
             with open_postgres_connection() as pg_cursor:
-                try:
-                    if not self._movies_ids:
-                        return []
-                    pg_cursor.execute(
-                        sql_selects.get(
-                            SELECT_PERSONS_GENRES_FILM_WORKS_BY_MOVIES
-                        ).format(
-                            tuple(self._movies_ids),
-                        )
+                if not self._movies_ids:
+                    return []
+                pg_cursor.execute(
+                    sql_selects.get(
+                        SELECT_PERSONS_GENRES_FILM_WORKS_BY_MOVIES
+                    ).format(
+                        tuple(self._movies_ids),
                     )
-                    data = pg_cursor.fetchall()
-                    return data
-
-                except Exception as e:
-                    logger.error(e)
+                )
+                data = pg_cursor.fetchall()
+                return data
 
         def collect_data(self) -> list[tuple]:
             self._get_persons_ids()
@@ -214,5 +199,6 @@ class ETL:
                 }
                 for row in data
             ]
-            res = helpers.bulk(es, actions)
-            logger.info(res)
+            with open_elasticsearch_connection() as es:
+                res = helpers.bulk(es, actions)
+                logger.info(res)
